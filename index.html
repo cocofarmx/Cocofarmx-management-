@@ -1665,21 +1665,16 @@ function loadMonthlyView(){
   const empId=empFilter?.value||'';
   const el=document.getElementById('monthlyViewContent');
   const isAdmin=currentUser?.role==='admin';
+  const showSalary=canViewSalary();
 
   if(!month){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div>`;
     return;
   }
 
-  // Only approved entries
   let data=allAttendance.filter(a=>a.status==='approved'&&a.date?.startsWith(month));
-
-  // For non-admin: show only their own submitted entries
-  if(!isAdmin){
-    data=data.filter(a=>a.submitted_by===currentUser.username);
-  } else if(empId){
-    data=data.filter(a=>String(a.employee_id)===empId);
-  }
+  if(!isAdmin) data=data.filter(a=>a.submitted_by===currentUser.username);
+  else if(empId) data=data.filter(a=>String(a.employee_id)===empId);
 
   if(!data.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No approved entries for this month</div></div>`;
@@ -1687,30 +1682,25 @@ function loadMonthlyView(){
   }
 
   const fmt=n=>'₹'+parseFloat(n||0).toLocaleString('en-IN',{minimumFractionDigits:2});
-
-  // Summary per employee
   const empMap={};
   data.forEach(a=>{
-    if(!empMap[a.employee_id])empMap[a.employee_id]={name:a.employee_name,days:0,totalHrs:0,totalSalary:0,entries:[]};
+    if(!empMap[a.employee_id])empMap[a.employee_id]={name:a.employee_name,days:0,totalHrs:0,totalSalary:0};
     empMap[a.employee_id].days+=1;
     empMap[a.employee_id].totalHrs+=parseFloat(a.hours_worked||0);
     empMap[a.employee_id].totalSalary+=parseFloat(a.salary_earned||0);
-    empMap[a.employee_id].entries.push(a);
   });
 
-  const grandDays=data.length;
   const grandHrs=data.reduce((s,a)=>s+parseFloat(a.hours_worked||0),0);
   const grandSalary=data.reduce((s,a)=>s+parseFloat(a.salary_earned||0),0);
 
   el.innerHTML=`
     <div class="report-summary">
       <div class="rsm"><div class="rl">Total Days</div><div class="rv" style="color:var(--primary)">${[...new Set(data.map(a=>a.date))].length}</div></div>
-      <div class="rsm"><div class="rl">Total Entries</div><div class="rv" style="color:var(--primary)">${grandDays}</div></div>
+      <div class="rsm"><div class="rl">Total Entries</div><div class="rv" style="color:var(--primary)">${data.length}</div></div>
       <div class="rsm"><div class="rl">Total Hours</div><div class="rv" style="color:var(--success)">${grandHrs.toFixed(1)} hrs</div></div>
-      ${canViewSalary()?`<div class="rsm"><div class="rl">Total Salary</div><div class="rv" style="color:#7c3aed">${fmt(grandSalary)}</div></div>`:''}
+      ${showSalary?`<div class="rsm"><div class="rl">Total Salary</div><div class="rv" style="color:#7c3aed">${fmt(grandSalary)}</div></div>`:''}
     </div>
-
-    ${canViewSalary()&&Object.keys(empMap).length>1?`
+    ${showSalary&&Object.keys(empMap).length>1?`
     <div style="padding:14px 20px 8px;font-size:0.85rem;font-weight:700;border-top:1px solid var(--border)">Employee Summary</div>
     <div class="table-wrap"><table>
       <thead><tr><th>Employee</th><th>Days</th><th>Total Hrs</th><th>Salary</th></tr></thead>
@@ -1721,22 +1711,22 @@ function loadMonthlyView(){
         <td style="font-weight:700;color:#7c3aed">${fmt(e.totalSalary)}</td>
       </tr>`).join('')}</tbody>
     </table></div>`:''}
-
     <div style="padding:14px 20px 8px;font-size:0.85rem;font-weight:700;border-top:1px solid var(--border)">Daily Entries</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Date</th>${canViewSalary()?'<th>Employee</th>':''}<th>Hours</th>${canViewSalary()?'<th>Salary</th>':''}<th>Note</th><th>Approved</th></tr></thead>
+      <thead><tr><th>#</th><th>Date</th><th>Employee</th><th>Hours</th>${showSalary?'<th>Salary</th>':''}<th>Note</th><th>Status</th></tr></thead>
       <tbody>${data.sort((a,b)=>a.date.localeCompare(b.date)).map((a,i)=>`<tr>
         <td class="sno">${i+1}</td>
         <td>${fd(a.date)}</td>
-${canViewSalary()?`<td class="name-cell">${a.employee_name}</td>`:''}
+        <td class="name-cell">${a.employee_name}</td>
         <td><span class="cft-badge">${parseFloat(a.hours_worked).toFixed(1)} hrs</span></td>
-${canViewSalary()?`<td style="font-weight:700;color:var(--success)">${fmt(a.salary_earned)}</td>`:''}
+        ${showSalary?`<td style="font-weight:700;color:var(--success)">${fmt(a.salary_earned)}</td>`:''}
         <td style="color:var(--muted);font-size:0.82rem">${a.note||'—'}</td>
         <td><span class="present-badge">✓ Approved</span></td>
       </tr>`).join('')}</tbody>
     </table></div>
   `;
 }
+
 
 function exportMonthlyView(){
   const month=document.getElementById('attMonthlyMonth').value;
@@ -2270,16 +2260,30 @@ function populateAttReportFilters(){
 
 function loadAttReport(){
   const month=document.getElementById('attReportMonth').value;
-  const empId=document.getElementById('attReportEmp').value;
+  const empId=document.getElementById('attReportEmp')?.value||'';
   const el=document.getElementById('attReportContent');
-  if(!month){el.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div>`;return;}
-  let attData=allAttendance.filter(a=>a.date?.startsWith(month)&&a.status==='approved');
-  if(empId)attData=attData.filter(a=>String(a.employee_id)===empId);
-  let advData=allAdvances.filter(a=>a.date?.startsWith(month));
-  if(empId)advData=advData.filter(a=>String(a.employee_id)===empId);
-  if(!attData.length&&!advData.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No data for this month</div></div>`;return;}
+  const isAdmin=currentUser?.role==='admin';
+  const showSalary=canViewSalary();
 
-  // Per employee summary
+  if(!month){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div>`;
+    return;
+  }
+
+  let attData=allAttendance.filter(a=>a.date?.startsWith(month)&&a.status==='approved');
+  // Non-admin: show only their submitted entries
+  if(!isAdmin) attData=attData.filter(a=>a.submitted_by===currentUser.username);
+  else if(empId) attData=attData.filter(a=>String(a.employee_id)===empId);
+
+  let advData=allAdvances.filter(a=>a.date?.startsWith(month));
+  if(!isAdmin) advData=advData.filter(a=>a.employee_name===currentUser.username);
+  else if(empId) advData=advData.filter(a=>String(a.employee_id)===empId);
+
+  if(!attData.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No approved entries for this month</div></div>`;
+    return;
+  }
+
   const empMap={};
   attData.forEach(a=>{
     if(!empMap[a.employee_id])empMap[a.employee_id]={name:a.employee_name,totalHrs:0,totalSalary:0,days:0};
@@ -2294,19 +2298,20 @@ function loadAttReport(){
 
   const grandSalary=Object.values(empMap).reduce((s,e)=>s+e.totalSalary,0);
   const grandAdv=Object.values(empMap).reduce((s,e)=>s+(e.advance||0),0);
+  const grandHrs=attData.reduce((s,a)=>s+parseFloat(a.hours_worked||0),0);
   const fmt=n=>'₹'+parseFloat(n||0).toLocaleString('en-IN',{minimumFractionDigits:2});
 
   el.innerHTML=`
     <div class="report-summary">
       <div class="rsm"><div class="rl">Total Days</div><div class="rv" style="color:var(--primary)">${[...new Set(attData.map(a=>a.date))].length}</div></div>
       <div class="rsm"><div class="rl">Total Entries</div><div class="rv" style="color:var(--primary)">${attData.length}</div></div>
-      <div class="rsm"><div class="rl">Total Hours</div><div class="rv" style="color:var(--success)">${attData.reduce((s,a)=>s+parseFloat(a.hours_worked||0),0).toFixed(1)} hrs</div></div>
-      ${canViewSalary()?`
+      <div class="rsm"><div class="rl">Total Hours</div><div class="rv" style="color:var(--success)">${grandHrs.toFixed(1)} hrs</div></div>
+      ${showSalary?`
       <div class="rsm"><div class="rl">Total Salary</div><div class="rv" style="color:var(--success)">${fmt(grandSalary)}</div></div>
       <div class="rsm"><div class="rl">Total Advances</div><div class="rv" style="color:var(--warning)">${fmt(grandAdv)}</div></div>
       <div class="rsm"><div class="rl">Net Payable</div><div class="rv" style="color:#7c3aed">${fmt(grandSalary-grandAdv)}</div></div>`:''}
     </div>
-    ${canViewSalary()?`
+    ${showSalary&&Object.keys(empMap).length>1?`
     <div style="padding:14px 20px 8px;font-size:0.85rem;font-weight:700;border-top:1px solid var(--border)">Employee Summary</div>
     <div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Employee</th><th>Days</th><th>Total Hrs</th><th>Salary</th><th>Advances</th><th>Net Payable</th></tr></thead>
@@ -2320,22 +2325,22 @@ function loadAttReport(){
         <td style="font-weight:800;color:#7c3aed">${fmt(e.totalSalary-(e.advance||0))}</td>
       </tr>`).join('')}</tbody>
     </table></div>`:''}
-    ${attData.length?`
     <div style="padding:14px 20px 8px;font-size:0.85rem;font-weight:700;border-top:1px solid var(--border)">Daily Attendance Detail</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Date</th>${canViewSalary()?'<th>Employee</th>':''}<th>Hours</th>${canViewSalary()?'<th>Salary</th>':''}<th>Note</th><th>Status</th></tr></thead>
+      <thead><tr><th>#</th><th>Date</th><th>Employee</th><th>Hours</th>${showSalary?'<th>Salary</th>':''}<th>Note</th><th>Status</th></tr></thead>
       <tbody>${attData.sort((a,b)=>a.date.localeCompare(b.date)).map((a,i)=>`<tr>
         <td class="sno">${i+1}</td>
         <td>${fd(a.date)}</td>
-${canViewSalary()?`<td class="name-cell">${a.employee_name}</td>`:''}
+        <td class="name-cell">${a.employee_name}</td>
         <td><span class="cft-badge">${parseFloat(a.hours_worked).toFixed(1)} hrs</span></td>
-${canViewSalary()?`<td style="font-weight:700;color:var(--success)">${fmt(a.salary_earned)}</td>`:''}
+        ${showSalary?`<td style="font-weight:700;color:var(--success)">${fmt(a.salary_earned)}</td>`:''}
         <td style="color:var(--muted);font-size:0.82rem">${a.note||'—'}</td>
         <td><span class="present-badge">✓ Approved</span></td>
       </tr>`).join('')}</tbody>
-    </table></div>`:''}
+    </table></div>
   `;
 }
+
 
 function exportAttReport(){
   const month=document.getElementById('attReportMonth').value;
