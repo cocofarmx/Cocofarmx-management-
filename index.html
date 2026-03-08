@@ -1076,6 +1076,9 @@ tbody tr:hover td{background:#fafbff;}
         <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--rs);cursor:pointer;font-size:0.84rem;font-weight:600;transition:all 0.15s;" id="perm-vehexp-label">
           <input type="checkbox" id="perm-vehexp" style="width:16px;height:16px;accent-color:#0f172a;cursor:pointer;"/> 🚗 Vehicle Expenses
         </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--rs);cursor:pointer;font-size:0.84rem;font-weight:600;background:#f0fdf4;" id="perm-view-salary-label">
+          <input type="checkbox" id="perm-view-salary" style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;"/> 💰 View Salary
+        </label>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('editUserModal')">Cancel</button><button class="btn btn-primary" onclick="saveUserEdit()">Save</button></div>
@@ -1504,7 +1507,7 @@ async function addUser(){
   const password=document.getElementById('uf-password').value;
   const role=document.getElementById('uf-role').value;
   if(!username||!password){toast('Username and password required','error');return;}
-  const permissions=role==='admin'?{husk:true,cocopeat:true,attendance:true}:{husk:false,cocopeat:false,attendance:false};
+  const permissions=role==='admin'?{husk:true,cocopeat:true,attendance:true,vehexp:true,view_salary:true}:{husk:false,cocopeat:false,attendance:false,vehexp:false,view_salary:false};
   try{
     await api('POST','users',{username,full_name,password,role,permissions});
     toast('User added!','success');
@@ -1521,19 +1524,13 @@ function openEditUser(id){
   document.getElementById('eu-role').value=u.role;
   document.getElementById('eu-active').value=String(u.is_active);
   const perms=u.permissions||{};
-  document.getElementById('perm-husk').checked=!!perms.husk;
-  document.getElementById('perm-cocopeat').checked=!!perms.cocopeat;
-  document.getElementById('perm-attendance').checked=!!perms.attendance;
-  // Highlight checked labels
-  ['husk','cocopeat','attendance'].forEach(p=>{
-    const label=document.getElementById('perm-'+p+'-label');
-    if(label)label.style.borderColor=perms[p]?'var(--primary)':'var(--border2)';
-    if(label)label.style.background=perms[p]?'var(--pl)':'';
-  });
-  // Add live toggle highlight
-  ['husk','cocopeat','attendance'].forEach(p=>{
+  const permKeys=['husk','cocopeat','attendance','vehexp','view-salary'];
+  const permVals={husk:!!perms.husk,cocopeat:!!perms.cocopeat,attendance:!!perms.attendance,vehexp:!!perms.vehexp,'view-salary':!!perms.view_salary};
+  permKeys.forEach(p=>{
     const cb=document.getElementById('perm-'+p);
     const label=document.getElementById('perm-'+p+'-label');
+    if(cb)cb.checked=permVals[p];
+    if(label){label.style.borderColor=permVals[p]?'var(--primary)':'var(--border2)';label.style.background=permVals[p]?'var(--pl)':'';}
     if(cb)cb.onchange=()=>{
       if(label){label.style.borderColor=cb.checked?'var(--primary)':'var(--border2)';label.style.background=cb.checked?'var(--pl)':'';}
     };
@@ -1545,7 +1542,9 @@ async function saveUserEdit(){
   const permissions={
     husk:document.getElementById('perm-husk').checked,
     cocopeat:document.getElementById('perm-cocopeat').checked,
-    attendance:document.getElementById('perm-attendance').checked
+    attendance:document.getElementById('perm-attendance').checked,
+    vehexp:document.getElementById('perm-vehexp').checked,
+    view_salary:document.getElementById('perm-view-salary').checked
   };
   const data={
     username:document.getElementById('eu-username').value.trim(),
