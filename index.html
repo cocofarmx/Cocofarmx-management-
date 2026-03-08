@@ -405,6 +405,7 @@ tbody tr:hover td{background:#fafbff;}
     </div>
   </div>
 </aside>
+<div id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <div class="main">
   <div class="topbar">
@@ -1121,7 +1122,7 @@ async function doLogin(){
   finally{btn.disabled=false;btn.textContent='Sign In';}
 }
 
-function startApp(){
+async function startApp(){
   document.getElementById('loginPage').classList.add('hidden');
   document.getElementById('appPage').classList.remove('hidden');
   document.getElementById('userNameDisplay').textContent=currentUser.full_name||currentUser.username;
@@ -1148,7 +1149,7 @@ function startApp(){
   }
 }
 
-function doLogout(){
+async function doLogout(){
   sessionStorage.removeItem('huskerUser');
   currentUser=null;
   document.getElementById('appPage').classList.add('hidden');
@@ -1173,7 +1174,7 @@ async function fetchAll(){
 
 async function refreshData(){await fetchAll();toast('Refreshed','success');}
 
-function setupModuleButtons(){
+async function setupModuleButtons(){
   const isAdmin=currentUser?.role==='admin';
   const perms=currentUser?.permissions||{};
   // Husk button
@@ -1197,7 +1198,7 @@ function hasPermission(mod){
   return perms[mod]===true;
 }
 
-function switchModule(mod){
+async function switchModule(mod){
   if(!hasPermission(mod)){toast('Access denied. Contact admin.','error');return;}
   currentModule=mod;
   document.getElementById('modHusk').className='mod-btn husk'+(mod==='husk'?' active':'');
@@ -1282,13 +1283,13 @@ function switchModule(mod){
 }
 
 // SIDEBAR VEHICLES
-function renderSideVehicles(){
+async function renderSideVehicles(){
   const el=document.getElementById('sideVehicleList');
   if(!allVehicles.length){el.innerHTML=`<div style="padding:8px;font-size:0.75rem;color:var(--muted2);">No vehicles yet</div>`;return;}
   el.innerHTML=allVehicles.map(v=>`<div class="veh-item"><div class="vn">${v.vehicle_number}</div><div class="vo">👤 ${v.owner_name}</div><div class="vc">📦 ${v.cft_value} CFT</div></div>`).join('');
 }
 
-function renderVehicleSelect(){
+async function renderVehicleSelect(){
   const opts='<option value="">— Select Vehicle —</option>'+allVehicles.map(v=>`<option value="${v.vehicle_number}">${v.vehicle_number} — ${v.owner_name}</option>`).join('');
   document.getElementById('f-vehicle').innerHTML=opts;
   const ev=document.getElementById('edit-vehicle');
@@ -1311,7 +1312,7 @@ function showPage(page){
 }
 
 // DASHBOARD
-function renderDashboard(){
+async function renderDashboard(){
   const now=new Date();
   const modEntries=allEntries.filter(e=>e.entry_type===currentModule);
   const tm=modEntries.filter(e=>{const d=new Date(e.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
@@ -1344,7 +1345,7 @@ function onEditVehicleSelect(){
 }
 
 // FILTERS
-function renderFilters(){
+async function renderFilters(){
   const me=allEntries.filter(e=>e.entry_type===currentModule);
   const months=[...new Set(me.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const names=[...new Set(me.map(e=>e.name).filter(Boolean))].sort();
@@ -1368,7 +1369,7 @@ function applyFilters(){
   currentPage=1;renderTable();
 }
 
-function renderTable(){
+async function renderTable(){
   const start=(currentPage-1)*PER_PAGE;
   const page=filteredEntries.slice(start,start+PER_PAGE);
   const isAdmin=currentUser?.role==='admin';
@@ -1396,7 +1397,7 @@ function renderTable(){
   h+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===tp?'disabled':''}>›</button>`;
   pb.innerHTML=h;
 }
-function goPage(p){currentPage=p;renderTable();}
+async function goPage(p){currentPage=p;renderTable();}
 
 // ADD ENTRY
 async function submitEntry(){
@@ -1419,7 +1420,7 @@ async function submitEntry(){
 function clearForm(){['f-name','f-time','f-owner','f-cft'].forEach(id=>document.getElementById(id).value='');document.getElementById('f-vehicle').value='';setTodayDate();}
 
 // EDIT ENTRY
-function openEdit(id){
+async function openEdit(id){
   const e=allEntries.find(x=>x.id===id);if(!e)return;
   document.getElementById('edit-id').value=e.id;
   document.getElementById('edit-date').value=e.date;
@@ -1444,7 +1445,7 @@ async function deleteEntry(id){
 }
 
 // VEHICLES MANAGEMENT
-function renderVehicleTable(){
+async function renderVehicleTable(){
   const tbody=document.getElementById('vehicleTableBody');
   if(!tbody)return;
   tbody.innerHTML=allVehicles.length?allVehicles.map((v,i)=>`<tr><td class="sno">${i+1}</td><td><span class="vbadge">${v.vehicle_number}</span></td><td class="name-cell">${v.owner_name}</td><td><span class="cft-badge">${v.cft_value} CFT</span></td><td><div class="flex gap-2"><button class="btn btn-ghost btn-sm" onclick="openEditVehicle(${v.id})">✏️</button><button class="btn btn-ghost btn-sm" onclick="deleteVehicle(${v.id})">🗑️</button></div></td></tr>`).join(''):`<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles added</div></div></td></tr>`;
@@ -1457,7 +1458,7 @@ async function addVehicle(){
   try{await api('POST','vehicles',{vehicle_number,owner_name,cft_value});toast('Vehicle added!','success');['vf-number','vf-owner','vf-cft'].forEach(id=>document.getElementById(id).value='');await fetchAll();}
   catch(e){toast('Error: '+e.message,'error');}
 }
-function openEditVehicle(id){
+async function openEditVehicle(id){
   const v=allVehicles.find(x=>x.id===id);if(!v)return;
   document.getElementById('ev-id').value=v.id;
   document.getElementById('ev-number').value=v.vehicle_number;
@@ -1478,7 +1479,7 @@ async function deleteVehicle(id){
 }
 
 // USERS MANAGEMENT
-function renderUserTable(){
+async function renderUserTable(){
   const tbody=document.getElementById('userTableBody');if(!tbody)return;
   tbody.innerHTML=allUsers.length?allUsers.map((u,i)=>{
     const perms=u.permissions||{};
@@ -1501,7 +1502,7 @@ function renderUserTable(){
     </tr>`;
   }).join(''):`<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No users found</div></div></td></tr>`;
 }
-async function addUser(){
+async async function addUser(){
   const username=document.getElementById('uf-username').value.trim();
   const full_name=document.getElementById('uf-fullname').value.trim();
   const password=document.getElementById('uf-password').value;
@@ -1515,7 +1516,7 @@ async function addUser(){
     await fetchAll();
   }catch(e){toast('Error: '+(e.message.includes('unique')?'Username already exists':e.message),'error');}
 }
-function openEditUser(id){
+async function openEditUser(id){
   const u=allUsers.find(x=>x.id===id);if(!u)return;
   document.getElementById('eu-id').value=u.id;
   document.getElementById('eu-username').value=u.username;
@@ -1537,7 +1538,7 @@ function openEditUser(id){
   });
   openModal('editUserModal');
 }
-async function saveUserEdit(){
+async async function saveUserEdit(){
   const id=document.getElementById('eu-id').value;
   const permissions={
     husk:document.getElementById('perm-husk').checked,
@@ -1562,7 +1563,7 @@ async function saveUserEdit(){
     await fetchAll();
   }catch(e){toast('Error: '+e.message,'error');}
 }
-function openEditPermissions(id){
+async function openEditPermissions(id){
   const allUsers=window._allUsers||[];
   const u=allUsers.find(x=>x.id===id);if(!u)return;
   const p=u.permissions||{};
@@ -1598,12 +1599,12 @@ async function deleteUser(id){
 }
 
 // REPORTS
-function populateReportMonths(){
+async function populateReportMonths(){
   const months=[...new Set(allEntries.filter(e=>e.entry_type===currentModule).map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const sel=document.getElementById('reportMonth');const cur=sel.value;
   sel.innerHTML='<option value="">Select Month</option>'+months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}" ${cur===m?'selected':''}>${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;}).join('');
 }
-function loadReport(){
+async function loadReport(){
   const month=document.getElementById('reportMonth').value;
   const data=month?allEntries.filter(e=>e.entry_type===currentModule&&e.date?.startsWith(month)):[];
   const el=document.getElementById('reportContent');
@@ -1612,13 +1613,13 @@ function loadReport(){
   const totalCFT=data.reduce((s,e)=>s+(parseFloat(e.cft_value)||0),0);
   el.innerHTML=`<div class="report-summary"><div class="rsm"><div class="rl">Total Entries</div><div class="rv" style="color:var(--primary)">${data.length}</div></div><div class="rsm"><div class="rl">Unique Drivers</div><div class="rv" style="color:var(--success)">${new Set(data.map(e=>e.name)).size}</div></div><div class="rsm"><div class="rl">Unique Vehicles</div><div class="rv" style="color:var(--warning)">${new Set(data.map(e=>e.vehicle_number)).size}</div></div><div class="rsm"><div class="rl">Total CFT</div><div class="rv" style="color:#7c3aed">${totalCFT.toFixed(1)}</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Date</th><th>Name</th><th>Time</th><th>Vehicle</th><th>CFT</th><th>Owner</th></tr></thead><tbody>${data.map((e,i)=>`<tr><td class="sno">${i+1}</td><td>${fd(e.date)}</td><td class="name-cell">${e.name}</td><td class="time-cell">${e.time}</td><td><span class="vbadge">${e.vehicle_number}</span></td><td><span class="cft-badge">${e.cft_value||'—'}</span></td><td style="color:var(--muted);font-size:0.82rem">${e.owner_name||'—'}</td></tr>`).join('')}</tbody></table></div>`;
 }
-function exportReport(){
+async function exportReport(){
   const month=document.getElementById('reportMonth').value;
   if(!month){toast('Select a month first','error');return;}
   excelDown(allEntries.filter(e=>e.entry_type===currentModule&&e.date?.startsWith(month)),`${currentModule}_report_${month}.xlsx`);
 }
-function exportExcel(){excelDown(filteredEntries,`${currentModule}_entries_${document.getElementById('filterMonth').value||'all'}.xlsx`);}
-function excelDown(data,filename){
+async function exportExcel(){excelDown(filteredEntries,`${currentModule}_entries_${document.getElementById('filterMonth').value||'all'}.xlsx`);}
+async function excelDown(data,filename){
   const rows=data.map((e,i)=>({'S.No':i+1,'Date':fd(e.date),'Name':e.name,'Time':e.time,'Vehicle Number':e.vehicle_number,'CFT Value':e.cft_value||'','Owner Name':e.owner_name||''}));
   const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[6,13,20,12,18,10,20].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Husk Entries');
@@ -1658,7 +1659,7 @@ function initMonthlyView(){
   if(cur)loadMonthlyView();
 }
 
-function loadMonthlyView(){
+async function loadMonthlyView(){
   const month=document.getElementById('attMonthlyMonth').value;
   const empFilter=document.getElementById('attMonthlyEmp');
   const empId=empFilter?.value||'';
@@ -1727,7 +1728,7 @@ function loadMonthlyView(){
 }
 
 
-function exportMonthlyView(){
+async function exportMonthlyView(){
   const month=document.getElementById('attMonthlyMonth').value;
   if(!month){toast('Select a month first','error');return;}
   const isAdmin=currentUser?.role==='admin';
@@ -1772,7 +1773,7 @@ async function fetchVehExpData(){
   }catch(e){toast('Error loading vehicle expenses: '+e.message,'error');}
 }
 
-function switchVehExpTab(idx){
+async function switchVehExpTab(idx){
   [0,1,2,3].forEach(i=>{
     document.getElementById('vehexp-tab-'+i)?.classList.toggle('hidden',i!==idx);
     document.getElementById('vehExpTab'+i)?.classList.toggle('active',i===idx);
@@ -1785,7 +1786,7 @@ function switchVehExpTab(idx){
   if(idx===2)populateVeReportMonths();
 }
 
-function populateVeVehicleDropdowns(){
+async function populateVeVehicleDropdowns(){
   const opts='<option value="">— Select Vehicle —</option>'+allExpVehicles.map(v=>`<option value="${v.id}|${v.vehicle_number}">${v.vehicle_number}${v.vehicle_name?' - '+v.vehicle_name:''}</option>`).join('');
   const veSel=document.getElementById('ve-vehicle');
   const vfSel=document.getElementById('veFilterVeh');
@@ -1793,13 +1794,13 @@ function populateVeVehicleDropdowns(){
   if(vfSel)vfSel.innerHTML='<option value="">All Vehicles</option>'+allExpVehicles.map(v=>`<option value="${v.vehicle_number}">${v.vehicle_number}${v.vehicle_name?' - '+v.vehicle_name:''}</option>`).join('');
 }
 
-function populateVeMonthFilters(){
+async function populateVeMonthFilters(){
   const months=[...new Set(allVehExp.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const sel=document.getElementById('veFilterMonth');
   if(sel)sel.innerHTML='<option value="">All Months</option>'+months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;}).join('');
 }
 
-function populateVeReportMonths(){
+async function populateVeReportMonths(){
   const months=[...new Set(allVehExp.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const sel=document.getElementById('veReportMonth');
   if(!sel)return;
@@ -1833,13 +1834,13 @@ function clearVeForm(){
   setAmountType('ve','cash');
 }
 
-function initVeDate(){
+async function initVeDate(){
   const el=document.getElementById('ve-date');
   if(el&&!el.value)el.value=new Date().toISOString().split('T')[0];
 }
 
 // Filter
-function filterVehExp(){
+async function filterVehExp(){
   const s=document.getElementById('veSearch').value.toLowerCase();
   const m=document.getElementById('veFilterMonth').value;
   const cat=document.getElementById('veFilterCat').value;
@@ -1855,7 +1856,7 @@ function filterVehExp(){
 }
 
 // Render table
-function renderVehExpTable(){
+async function renderVehExpTable(){
   const start=(vehExpPage-1)*VE_PER;
   const page=vehExpFiltered.slice(start,start+VE_PER);
   const isAdmin=currentUser?.role==='admin';
@@ -1879,7 +1880,7 @@ async function deleteVehExp(id){
 }
 
 // REPORTS
-function loadVehExpReport(){
+async function loadVehExpReport(){
   const month=document.getElementById('veReportMonth').value;
   const el=document.getElementById('veReportContent');
   if(!month){el.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div>`;return;}
@@ -1925,7 +1926,7 @@ function loadVehExpReport(){
   `;
 }
 
-function exportVehExpReport(){
+async function exportVehExpReport(){
   const month=document.getElementById('veReportMonth').value;
   if(!month){toast('Select a month first','error');return;}
   const data=allVehExp.filter(e=>e.date?.startsWith(month));
@@ -1936,7 +1937,7 @@ function exportVehExpReport(){
   XLSX.writeFile(wb,`vehicle_expenses_${month}.xlsx`);toast('Exported!','success');
 }
 
-function exportVehExp(){
+async function exportVehExp(){
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.json_to_sheet(vehExpFiltered.map((e,i)=>({'S.No':i+1,'Date':fd(e.date),'Vehicle':e.vehicle_number,'Category':VE_CAT_LABELS[e.category]||e.category,'Amount':e.amount,'Payment':e.payment_type,'Description':e.description||''})));
   ws['!cols']=[6,13,15,15,12,10,25].map(w=>({wch:w}));
@@ -1958,7 +1959,7 @@ async function addExpVehicle(){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 
-function renderEvTable(){
+async function renderEvTable(){
   const tbody=document.getElementById('evTableBody');if(!tbody)return;
   tbody.innerHTML=allExpVehicles.length?allExpVehicles.map((v,i)=>`<tr>
     <td class="sno">${i+1}</td>
@@ -2010,7 +2011,7 @@ async function fetchAttData(){
   }catch(e){toast('Error loading attendance: '+e.message,'error');}
 }
 
-function switchAttTab(idx){
+async function switchAttTab(idx){
   [0,1,2,3,4,5].forEach(i=>{
     document.getElementById('att-tab-'+i)?.classList.toggle('hidden',i!==idx);
     document.getElementById('attTab'+i)?.classList.toggle('active',i===idx);
@@ -2034,7 +2035,7 @@ function initAttDate(){
   if(el&&!el.value)el.value=new Date().toISOString().split('T')[0];
 }
 
-function renderAttCards(){
+async function renderAttCards(){
   initAttDate();
   const date=document.getElementById('attDate')?.value;
   const grid=document.getElementById('attCardsGrid');
@@ -2071,14 +2072,14 @@ function renderAttCards(){
   }).join('');
 }
 
-function updateSalaryPill(empId, rate){
+async function updateSalaryPill(empId, rate){
   const hrs=parseFloat(document.getElementById('att-hrs-'+empId).value)||0;
   const r=rate||parseFloat(document.getElementById('attcard-'+empId)?.dataset?.rate)||65;
   document.getElementById('att-sal-'+empId).textContent='₹'+(hrs*r).toLocaleString('en-IN',{minimumFractionDigits:2});
   if(hrs>0){document.getElementById('att-absent-'+empId).classList.remove('active');}
 }
 
-function toggleAbsent(empId){
+async function toggleAbsent(empId){
   const btn=document.getElementById('att-absent-'+empId);
   const hrsInput=document.getElementById('att-hrs-'+empId);
   const isAbsent=btn.classList.contains('active');
@@ -2086,7 +2087,7 @@ function toggleAbsent(empId){
   else{btn.classList.add('active');hrsInput.value=0;updateSalaryPill(empId);}
 }
 
-function loadAttendanceForDate(){renderAttCards();}
+async function loadAttendanceForDate(){renderAttCards();}
 
 async function saveAllAttendance(){
   const date=document.getElementById('attDate').value;
@@ -2150,7 +2151,7 @@ async function addEmployee(){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 
-function renderEmpTable(){
+async function renderEmpTable(){
   const tbody=document.getElementById('empTableBody');if(!tbody)return;
   tbody.innerHTML=allEmployees.length?allEmployees.map((e,i)=>`<tr>
     <td class="sno">${i+1}</td>
@@ -2171,7 +2172,7 @@ async function deactivateEmployee(id){
   try{await api('PATCH','employees',{is_active:false},`id=eq.${id}`);toast('Employee removed','success');await fetchAttData();}
   catch(e){toast('Error: '+e.message,'error');}
 }
-function openEditEmp(id){
+async function openEditEmp(id){
   const e=allEmployees.find(x=>x.id===id);if(!e)return;
   document.getElementById('ee-id').value=e.id;
   document.getElementById('ee-name').value=e.name;
@@ -2193,7 +2194,7 @@ async function saveEmpEdit(){
 }
 
 // ADVANCES
-function populateAdvEmpSelect(){
+async function populateAdvEmpSelect(){
   const sel=document.getElementById('adv-emp');
   const fSel=document.getElementById('advFilterEmp');
   const opts='<option value="">— Select Employee —</option>'+allEmployees.map(e=>`<option value="${e.id}|${e.name}">${e.name}</option>`).join('');
@@ -2218,7 +2219,7 @@ async function saveAdvance(){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 
-function renderAdvances(){
+async function renderAdvances(){
   const tbody=document.getElementById('advTableBody');if(!tbody)return;
   const filterEmpId=document.getElementById('advFilterEmp')?.value||'';
   let data=allAdvances;
@@ -2240,14 +2241,14 @@ async function deleteAdvance(id){
 }
 
 // REPORTS
-function populateAttFilters(){
+async function populateAttFilters(){
   const months=[...new Set(allAttendance.map(a=>a.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const sel=document.getElementById('attReportMonth');if(!sel)return;
   const cur=sel.value;
   sel.innerHTML='<option value="">Select Month</option>'+months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}" ${cur===m?'selected':''}>${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;}).join('');
 }
 
-function populateAttReportFilters(){
+async function populateAttReportFilters(){
   populateAttFilters();
   const isAdmin=currentUser?.role==='admin';
   const empSel=document.getElementById('attReportEmp');if(!empSel)return;
@@ -2257,7 +2258,7 @@ function populateAttReportFilters(){
   empSel.innerHTML='<option value="">All Employees</option>'+allEmployees.map(e=>`<option value="${e.id}" ${cur===String(e.id)?'selected':''}>${e.name}</option>`).join('');
 }
 
-function loadAttReport(){
+async function loadAttReport(){
   const month=document.getElementById('attReportMonth').value;
   const empId=document.getElementById('attReportEmp')?.value||'';
   const el=document.getElementById('attReportContent');
@@ -2341,7 +2342,7 @@ function loadAttReport(){
 }
 
 
-function exportAttReport(){
+async function exportAttReport(){
   const month=document.getElementById('attReportMonth').value;
   if(!month){toast('Select a month first','error');return;}
   const isAdmin=currentUser?.role==='admin';
@@ -2371,7 +2372,7 @@ function exportAttReport(){
 }
 
 // Init advance date
-function initAdvDate(){
+async function initAdvDate(){
   const el=document.getElementById('adv-date');
   if(el&&!el.value)el.value=new Date().toISOString().split('T')[0];
 }
@@ -2416,7 +2417,7 @@ async function fetchNotifications(){
 }
 
 // PENDING APPROVALS
-function renderPendingApprovals(){
+async function renderPendingApprovals(){
   const pending=allAttendance.filter(a=>a.status==='pending');
   const el=document.getElementById('pendingAttContent');if(!el)return;
   if(!pending.length){
@@ -2520,7 +2521,7 @@ async function fetchCpData(){
   }catch(e){toast('Error loading cocopeat data: '+e.message,'error');}
 }
 
-function switchCpTab(tab){
+async function switchCpTab(tab){
   ['bags','cft','report'].forEach(t=>{
     document.getElementById('cp-'+t).classList.toggle('hidden',t!==tab);
     document.getElementById('cpTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('active',t===tab);
@@ -2591,7 +2592,7 @@ function clearCpBags(){['cpb-name','cpb-vehicle','cpb-bags','cpb-rate'].forEach(
 function clearCpCft(){['cpc-name','cpc-vehicle','cpc-cft','cpc-rate'].forEach(id=>document.getElementById(id).value='');document.getElementById('cpc-total').textContent='₹ 0.00';document.getElementById('cpc-date').value=new Date().toISOString().split('T')[0];setAmountType('cpc','cash');}
 
 // Render tables
-function renderCpBags(){
+async function renderCpBags(){
   const start=(cpBagsPage-1)*CP_PER;
   const page=cpBagsFiltered.slice(start,start+CP_PER);
   const isAdmin=currentUser?.role==='admin';
@@ -2608,7 +2609,7 @@ function renderCpBags(){
   renderCpPagination('cpb',cpBagsFiltered.length,cpBagsPage,(p)=>{cpBagsPage=p;renderCpBags();});
 }
 
-function renderCpCft(){
+async function renderCpCft(){
   const start=(cpCftPage-1)*CP_PER;
   const page=cpCftFiltered.slice(start,start+CP_PER);
   const isAdmin=currentUser?.role==='admin';
@@ -2625,7 +2626,7 @@ function renderCpCft(){
   renderCpPagination('cpc',cpCftFiltered.length,cpCftPage,(p)=>{cpCftPage=p;renderCpCft();});
 }
 
-function renderCpPagination(prefix,total,page,cb){
+async function renderCpPagination(prefix,total,page,cb){
   const tp=Math.ceil(total/CP_PER);
   const s=Math.min((page-1)*CP_PER+1,total),e=Math.min(page*CP_PER,total);
   document.getElementById(prefix+'PageInfo').textContent=total?`Showing ${s}–${e} of ${total}`:'0 entries';
@@ -2638,7 +2639,7 @@ function renderCpPagination(prefix,total,page,cb){
 }
 
 // Filters
-function populateCpFilters(){
+async function populateCpFilters(){
   const bMonths=[...new Set(cpBagsAll.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const cMonths=[...new Set(cpCftAll.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const bSel=document.getElementById('cpbFilterMonth');
@@ -2647,7 +2648,7 @@ function populateCpFilters(){
   cSel.innerHTML='<option value="">All Months</option>'+cMonths.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}">${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;}).join('');
 }
 
-function filterCpBags(){
+async function filterCpBags(){
   const s=document.getElementById('cpbSearch').value.toLowerCase();
   const m=document.getElementById('cpbFilterMonth').value;
   cpBagsFiltered=cpBagsAll.filter(e=>{
@@ -2657,7 +2658,7 @@ function filterCpBags(){
   });
   cpBagsPage=1;renderCpBags();
 }
-function filterCpCft(){
+async function filterCpCft(){
   const s=document.getElementById('cpcSearch').value.toLowerCase();
   const m=document.getElementById('cpcFilterMonth').value;
   cpCftFiltered=cpCftAll.filter(e=>{
@@ -2681,13 +2682,13 @@ async function deleteCpCft(id){
 }
 
 // Report
-function populateCpReportMonths(){
+async function populateCpReportMonths(){
   const allMonths=[...new Set([...cpBagsAll,...cpCftAll].map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
   const sel=document.getElementById('cpReportMonth');const cur=sel.value;
   sel.innerHTML='<option value="">Select Month</option>'+allMonths.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}" ${cur===m?'selected':''}>${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;}).join('');
 }
 
-function loadCpReport(){
+async function loadCpReport(){
   const month=document.getElementById('cpReportMonth').value;
   const el=document.getElementById('cpReportContent');
   if(!month){el.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div>`;return;}
@@ -2721,7 +2722,7 @@ function loadCpReport(){
   `;
 }
 
-function exportCpReport(){
+async function exportCpReport(){
   const month=document.getElementById('cpReportMonth').value;
   if(!month){toast('Select a month first','error');return;}
   const bags=cpBagsAll.filter(e=>e.date?.startsWith(month));
@@ -2739,14 +2740,14 @@ function exportCpReport(){
   }
   XLSX.writeFile(wb,`cocopeat_report_${month}.xlsx`);toast('Excel exported!','success');
 }
-function exportCpBags(){
+async function exportCpBags(){
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.json_to_sheet(cpBagsFiltered.map((e,i)=>({'S.No':i+1,'Date':fd(e.date),'Name':e.name,'Vehicle':e.vehicle_number,'Bags':e.num_bags,'Rate/Bag':e.rate_per_bag,'Total':e.total_amount,'Type':e.amount_type})));
   ws['!cols']=[6,13,20,18,8,10,12,10].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'Bags');
   XLSX.writeFile(wb,'cocopeat_bags.xlsx');toast('Exported!','success');
 }
-function exportCpCft(){
+async function exportCpCft(){
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.json_to_sheet(cpCftFiltered.map((e,i)=>({'S.No':i+1,'Date':fd(e.date),'Name':e.name,'Vehicle':e.vehicle_number,'CFT':e.cft_value,'Rate/CFT':e.rate_per_cft,'Total':e.total_amount,'Type':e.amount_type})));
   ws['!cols']=[6,13,20,18,8,10,12,10].map(w=>({wch:w}));
@@ -2755,7 +2756,7 @@ function exportCpCft(){
 }
 
 // Init cocopeat dates
-function initCpDates(){
+async function initCpDates(){
   const today=new Date().toISOString().split('T')[0];
   ['cpb-date','cpc-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=today;});
 }
@@ -2799,7 +2800,7 @@ function closeSidebar(){
 }
 
 // ── Mobile bottom nav ───────────────────────────────────────
-function updateMobileNav(mod){
+async function updateMobileNav(mod){
   ['Husk','Cocopeat','Attendance','VehExp'].forEach(m=>{
     const el=document.getElementById('mbn'+m);
     if(el)el.classList.toggle('active',m.toLowerCase()===mod.toLowerCase()||(m==='VehExp'&&mod==='vehexp'));
