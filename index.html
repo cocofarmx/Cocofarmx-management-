@@ -1912,7 +1912,7 @@ function renderAttCards(){
     const salary=(hrs*hrRate).toFixed(2);
     return `<div class="att-card" id="attcard-${emp.id}" data-rate="${hrRate}">
       <div class="att-name">${emp.name}</div>
-      <div class="att-desig">${emp.designation||'Employee'} ${emp.phone?'· '+emp.phone:''} <span style="color:var(--success);font-weight:700">₹${emp.daily_wage||DEFAULT_DAILY_WAGE}/day</span></div>
+      <div class="att-desig">${emp.designation||'Employee'} ${emp.phone?'· '+emp.phone:''} ${isAdminUser?`<span style="color:var(--success);font-weight:700">₹${emp.daily_wage||DEFAULT_DAILY_WAGE}/day</span>`:''}</div>
       <div class="hours-input-wrap">
         <input type="number" class="hours-input" id="att-hrs-${emp.id}" value="${hrs}" min="0" max="16" step="0.5" oninput="updateSalaryPill(${emp.id},${hrRate})" placeholder="hrs"/>
         <span style="font-size:0.8rem;color:var(--muted)">hrs</span>
