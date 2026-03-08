@@ -59,6 +59,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .mod-btn.active.husk{background:#92400e;border-color:#92400e;color:#fff;}
 .mod-btn.active.cocopeat{background:#15803d;border-color:#15803d;color:#fff;}
 .mod-btn:hover:not(.active){background:var(--bg);color:var(--text);}
+.mod-btn.active.machexp{background:#b45309;border-color:#b45309;color:#fff;}
 .cp-tab-wrap{display:flex;gap:6px;margin-bottom:18px;}
 .cp-tab{padding:8px 20px;border-radius:var(--rs);border:1.5px solid var(--border2);background:var(--white);font-family:'Plus Jakarta Sans',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;color:var(--muted);transition:all 0.15s;}
 .cp-tab.active{background:#15803d;border-color:#15803d;color:#fff;}
@@ -353,6 +354,7 @@ tbody tr:hover td{background:#fafbff;}
     <button class="mod-btn cocopeat" id="modCocopeat" onclick="switchModule('cocopeat')">🥥 Cocopeat</button>
     <button class="mod-btn" id="modAttendance" onclick="switchModule('attendance')">👷 Attendance</button>
     <button class="mod-btn" id="modVehExp" onclick="switchModule('vehexp')">🚗 Expenses</button>
+    <button class="mod-btn" id="modMachExp" onclick="switchModule('machexp')" style="grid-column:span 2;">⚙️ Machine Expenses</button>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label husk-nav">Menu</div>
@@ -375,6 +377,14 @@ tbody tr:hover td{background:#fafbff;}
     </div>
 
     <!-- Attendance sub nav - shown only when attendance module active -->
+    <!-- MACHINE EXPENSES NAV -->
+    <div id="machExpNav" style="display:none">
+      <div class="nav-label">Machine Expenses</div>
+      <button class="nav-item active" id="machExpNavAdd" onclick="switchMachExpTab(0)"><span class="ni">➕</span>Add Expense</button>
+      <button class="nav-item" id="machExpNavAll" onclick="switchMachExpTab(1)"><span class="ni">📋</span>All Expenses</button>
+      <button class="nav-item" id="machExpNavReport" onclick="switchMachExpTab(2)"><span class="ni">📊</span>Reports</button>
+      <button class="nav-item" id="machExpNavMachines" onclick="switchMachExpTab(3)"><span class="ni">⚙️</span>Machines</button>
+    </div>
     <div id="attNav" style="display:none">
       <div class="nav-label">Attendance</div>
       <button class="nav-item active" id="attNavMark" onclick="switchAttTab(0)"><span class="ni">📅</span>Mark Attendance</button>
@@ -772,7 +782,90 @@ tbody tr:hover td{background:#fafbff;}
       </div>
     </div>
 
-    <!-- VEHICLE EXPENSES MODULE -->
+    <!-- MACHINE EXPENSES MODULE -->
+    <div id="page-machexp" class="hidden">
+      <div id="mach-tab-0">
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚙️ Add Machine Expense</div></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label>Date</label><input type="date" id="me-date"/></div>
+              <div class="field"><label>Machine</label>
+                <select id="me-machine"><option value="">Select Machine</option></select>
+              </div>
+              <div class="field"><label>🔩 Part Name</label>
+                <input type="text" id="me-part-name" placeholder="e.g. Engine filter, Belt..."/>
+              </div>
+              <div class="field"><label>💰 Expense Amount (₹)</label>
+                <input type="number" id="me-expense-amount" placeholder="0.00" min="0" step="0.01"/>
+              </div>
+              <div class="field"><label>👷 Worker Name</label>
+                <input type="text" id="me-worker-name" placeholder="Worker / Mechanic name"/>
+              </div>
+              <div class="field"><label>💵 Worker Amount (₹)</label>
+                <input type="number" id="me-worker-amount" placeholder="0.00" min="0" step="0.01"/>
+              </div>
+              <div class="field"><label>⏱ Time Acquired</label>
+                <input type="text" id="me-time-acquired" placeholder="e.g. 2 hrs, Half day..."/>
+              </div>
+            </div>
+            <div style="margin-top:18px;display:flex;gap:10px;">
+              <button class="btn btn-primary" onclick="saveMachExp()">💾 Save Expense</button>
+              <button class="btn btn-secondary" onclick="clearMachExpForm()">✕ Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="mach-tab-1" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📋 All Machine Expenses</div>
+            <div class="flex gap-2 no-print"><button class="btn btn-success btn-sm" onclick="exportMachExp()">⬇ Excel</button></div>
+          </div>
+          <div class="table-toolbar">
+            <input class="search-bar" id="me-search" placeholder="🔍 Search..." oninput="filterMachExp()"/>
+            <select class="filter-select" id="me-filter-month" onchange="filterMachExp()"><option value="">All Months</option></select>
+            <select class="filter-select" id="me-filter-machine" onchange="filterMachExp()"><option value="">All Machines</option></select>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>#</th><th>Date</th><th>Machine</th><th>Part Name</th><th>Expense (₹)</th><th>Worker</th><th>Worker Amt (₹)</th><th>Time</th><th class="no-print">Action</th></tr></thead>
+            <tbody id="machExpTbody"></tbody>
+          </table></div>
+          <div id="machExpPagination" class="pagination"></div>
+        </div>
+      </div>
+      <div id="mach-tab-2" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 Machine Expense Report</div>
+            <div class="flex gap-2 no-print">
+              <select class="filter-select" id="me-report-month" onchange="loadMachExpReport()"><option value="">Select Month</option></select>
+              <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print</button>
+              <button class="btn btn-success btn-sm" onclick="exportMachExpReport()">⬇ Excel</button>
+            </div>
+          </div>
+          <div id="machExpReportContent"><div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div></div>
+        </div>
+      </div>
+      <div id="mach-tab-3" class="hidden">
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚙️ Manage Machines</div></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label>Machine Name</label><input type="text" id="mach-name" placeholder="e.g. JCB, Tractor"/></div>
+              <div class="field"><label>Machine Type</label><input type="text" id="mach-type" placeholder="e.g. Excavator, Loader"/></div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:12px" onclick="addMachine()">➕ Add Machine</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>#</th><th>Machine Name</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="machinesTbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+<!-- VEHICLE EXPENSES MODULE -->
     <div id="page-vehexp" class="hidden">
       <button id="vehExpTab0" style="display:none"></button>
       <button id="vehExpTab1" style="display:none"></button>
@@ -983,6 +1076,10 @@ tbody tr:hover td{background:#fafbff;}
           <input type="checkbox" id="ep-perm-view-salary" style="width:16px;height:16px;accent-color:#16a34a"/>
           <span>💰 View Salary Details</span><span style="margin-left:auto;font-size:0.75rem;color:var(--muted)">Show salary in attendance</span>
         </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:0.92rem;font-weight:600;cursor:pointer;padding:12px 16px;border:1.5px solid var(--border2);border-radius:var(--rs);background:var(--bg);">
+          <input type="checkbox" id="ep-perm-machexp" style="width:16px;height:16px;accent-color:#b45309"/>
+          <span>⚙️ Machine Expenses</span><span style="margin-left:auto;font-size:0.75rem;color:var(--muted)">Track machine fuel, repair, parts</span>
+        </label>
       </div>
     </div>
     <div class="modal-footer">
@@ -1079,6 +1176,9 @@ tbody tr:hover td{background:#fafbff;}
         </label>
         <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--rs);cursor:pointer;font-size:0.84rem;font-weight:600;background:#f0fdf4;" id="perm-view-salary-label">
           <input type="checkbox" id="perm-view-salary" style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;"/> 💰 View Salary
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--rs);cursor:pointer;font-size:0.84rem;font-weight:600;transition:all 0.15s;" id="perm-machexp-label">
+          <input type="checkbox" id="perm-machexp" style="width:16px;height:16px;accent-color:#b45309;cursor:pointer;"/> ⚙️ Machine Expenses
         </label>
       </div>
     </div>
@@ -1194,7 +1294,6 @@ async function setupModuleButtons(){
 function hasPermission(mod){
   if(currentUser?.role==='admin') return true;
   const perms=currentUser?.permissions||{};
-  if(mod==='vehexp') return perms.vehexp===true;
   return perms[mod]===true;
 }
 
@@ -1210,7 +1309,7 @@ async function switchModule(mod){
   if(mod==='husk'){
     document.getElementById('f-entry-type').value='husk';
     ['page-dashboard','page-add','page-entries','page-reports'].forEach(p=>document.getElementById(p).classList.remove('hidden'));
-    ['page-cocopeat','page-vehicles','page-users','page-attendance','page-vehexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
+    ['page-cocopeat','page-vehicles','page-users','page-attendance','page-vehexp','page-machexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
     document.querySelectorAll('.husk-nav').forEach(el=>el.style.display='');
     document.getElementById('sideVehPanel').style.display='';
     document.getElementById('modAttendance').style.background='var(--white)';
@@ -1225,7 +1324,7 @@ async function switchModule(mod){
     document.getElementById('adminNav').style.display='';
     showPage('dashboard');
   } else if(mod==='cocopeat'){
-    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-attendance','page-vehexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
+    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-attendance','page-vehexp','page-machexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
     document.getElementById('page-cocopeat').classList.remove('hidden');
     document.getElementById('pageTitle').textContent='Cocopeat';
     document.getElementById('sideVehPanel').style.display='none';
@@ -1242,7 +1341,7 @@ async function switchModule(mod){
     switchCpTab('bags');
     fetchCpData();
   } else if(mod==='vehexp'){
-    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-cocopeat','page-attendance'].forEach(p=>document.getElementById(p).classList.add('hidden'));
+    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-cocopeat','page-attendance','page-machexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
     document.getElementById('page-vehexp').classList.remove('hidden');
     document.getElementById('pageTitle').textContent='Vehicle Expenses';
     document.getElementById('sideVehPanel').style.display='none';
@@ -1261,7 +1360,7 @@ async function switchModule(mod){
     switchVehExpTab(0);
     fetchVehExpData();
   } else if(mod==='attendance'){
-    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-cocopeat','page-vehexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
+    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-cocopeat','page-vehexp','page-machexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
     document.getElementById('page-attendance').classList.remove('hidden');
     document.getElementById('pageTitle').textContent='Attendance';
     document.getElementById('sideVehPanel').style.display='none';
@@ -1272,13 +1371,35 @@ async function switchModule(mod){
     document.getElementById('modCocopeat').className='mod-btn cocopeat';
     document.getElementById('attNav').style.display='';
     document.getElementById('vehExpNav').style.display='none';
+    document.getElementById('machExpNav').style.display='none';
     document.getElementById('modVehExp').style.background='var(--white)';
     document.getElementById('modVehExp').style.color='var(--muted)';
     document.getElementById('modVehExp').style.borderColor='var(--border2)';
+    document.getElementById('modMachExp').className='mod-btn machexp';
     document.querySelectorAll('.husk-nav').forEach(el=>el.style.display='none');
     document.getElementById('adminNav').style.display='none';
     switchAttTab(0);
     fetchAttData();
+  } else if(mod==='machexp'){
+    ['page-dashboard','page-add','page-entries','page-reports','page-vehicles','page-users','page-cocopeat','page-attendance','page-vehexp'].forEach(p=>document.getElementById(p).classList.add('hidden'));
+    document.getElementById('page-machexp').classList.remove('hidden');
+    document.getElementById('pageTitle').textContent='Machine Expenses';
+    document.getElementById('sideVehPanel').style.display='none';
+    document.getElementById('modHusk').className='mod-btn husk';
+    document.getElementById('modCocopeat').className='mod-btn cocopeat';
+    document.getElementById('modAttendance').style.background='var(--white)';
+    document.getElementById('modAttendance').style.color='var(--muted)';
+    document.getElementById('modAttendance').style.borderColor='var(--border2)';
+    document.getElementById('modVehExp').style.background='var(--white)';
+    document.getElementById('modVehExp').style.color='var(--muted)';
+    document.getElementById('modVehExp').style.borderColor='var(--border2)';
+    document.getElementById('modMachExp').className='mod-btn machexp active';
+    document.getElementById('attNav').style.display='none';
+    document.getElementById('vehExpNav').style.display='none';
+    document.getElementById('machExpNav').style.display='';
+    document.querySelectorAll('.husk-nav').forEach(el=>el.style.display='none');
+    document.getElementById('adminNav').style.display='none';
+    fetchMachExpData().then(()=>{ populateMachExpFilters(); switchMachExpTab(0); clearMachExpForm(); });
   }
 }
 
@@ -1508,7 +1629,7 @@ async async function addUser(){
   const password=document.getElementById('uf-password').value;
   const role=document.getElementById('uf-role').value;
   if(!username||!password){toast('Username and password required','error');return;}
-  const permissions=role==='admin'?{husk:true,cocopeat:true,attendance:true,vehexp:true,view_salary:true}:{husk:false,cocopeat:false,attendance:false,vehexp:false,view_salary:false};
+  const permissions=role==='admin'?{husk:true,cocopeat:true,attendance:true,vehexp:true,machexp:true,view_salary:true}:{husk:false,cocopeat:false,attendance:false,vehexp:false,machexp:false,view_salary:false};
   try{
     await api('POST','users',{username,full_name,password,role,permissions});
     toast('User added!','success');
@@ -1525,8 +1646,8 @@ async function openEditUser(id){
   document.getElementById('eu-role').value=u.role;
   document.getElementById('eu-active').value=String(u.is_active);
   const perms=u.permissions||{};
-  const permKeys=['husk','cocopeat','attendance','vehexp','view-salary'];
-  const permVals={husk:!!perms.husk,cocopeat:!!perms.cocopeat,attendance:!!perms.attendance,vehexp:!!perms.vehexp,'view-salary':!!perms.view_salary};
+  const permKeys=['husk','cocopeat','attendance','vehexp','view-salary','machexp'];
+  const permVals={husk:!!perms.husk,cocopeat:!!perms.cocopeat,attendance:!!perms.attendance,vehexp:!!perms.vehexp,'view-salary':!!perms.view_salary,machexp:!!perms.machexp};
   permKeys.forEach(p=>{
     const cb=document.getElementById('perm-'+p);
     const label=document.getElementById('perm-'+p+'-label');
@@ -1545,7 +1666,8 @@ async async function saveUserEdit(){
     cocopeat:document.getElementById('perm-cocopeat').checked,
     attendance:document.getElementById('perm-attendance').checked,
     vehexp:document.getElementById('perm-vehexp').checked,
-    view_salary:document.getElementById('perm-view-salary').checked
+    view_salary:document.getElementById('perm-view-salary').checked,
+    machexp:document.getElementById('perm-machexp').checked
   };
   const data={
     username:document.getElementById('eu-username').value.trim(),
@@ -1574,6 +1696,7 @@ async function openEditPermissions(id){
   document.getElementById('ep-perm-attendance').checked=!!p.attendance;
   document.getElementById('ep-perm-vehexp').checked=!!p.vehexp;
   document.getElementById('ep-perm-view-salary').checked=!!p.view_salary;
+  document.getElementById('ep-perm-machexp').checked=!!p.machexp;
   openModal('editPermsModal');
 }
 async function savePermissions(){
@@ -1583,7 +1706,8 @@ async function savePermissions(){
     cocopeat:document.getElementById('ep-perm-cocopeat').checked,
     attendance:document.getElementById('ep-perm-attendance').checked,
     vehexp:document.getElementById('ep-perm-vehexp').checked,
-    view_salary:document.getElementById('ep-perm-view-salary').checked
+    view_salary:document.getElementById('ep-perm-view-salary').checked,
+    machexp:document.getElementById('ep-perm-machexp').checked
   };
   try{
     await api('PATCH','users',{permissions},`id=eq.${id}`);
@@ -1747,6 +1871,295 @@ async function exportMonthlyView(){
   ws['!cols']=[6,13,20,8,20,14].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'Monthly Attendance');
   XLSX.writeFile(wb,`attendance_${month}.xlsx`);
+  toast('Exported!','success');
+}
+
+// ============================================================
+// MACHINE EXPENSES MODULE
+let allMachineExpenses=[], allMachines=[], machExpPage=1;
+const ME_PAGE_SIZE=15;
+
+async function fetchMachExpData(){
+  try{
+    const [exp, mach] = await Promise.all([
+      api('GET','machine_expenses','','order=date.desc,created_at.desc'),
+      api('GET','machines','','order=name.asc')
+    ]);
+    allMachineExpenses = exp||[];
+    allMachines = mach||[];
+  } catch(e){ allMachineExpenses=[]; allMachines=[]; }
+}
+
+async function switchMachExpTab(idx){
+  [0,1,2,3].forEach(i=>{
+    document.getElementById('mach-tab-'+i)?.classList.toggle('hidden', i!==idx);
+  });
+  const navMap={0:'machExpNavAdd',1:'machExpNavAll',2:'machExpNavReport',3:'machExpNavMachines'};
+  Object.values(navMap).forEach(id=>document.getElementById(id)?.classList.remove('active'));
+  document.getElementById(navMap[idx])?.classList.add('active');
+  const titles=['Add Machine Expense','All Machine Expenses','Machine Expense Report','Manage Machines'];
+  document.getElementById('pageTitle').textContent = titles[idx]||'Machine Expenses';
+  if(idx===1){ populateMachExpFilters(); filterMachExp(); }
+  if(idx===2){ populateMachExpReportMonths(); }
+  if(idx===3){ renderMachinesTable(); }
+}
+
+function populateMachExpFilters(){
+  // Month filter
+  const months=[...new Set(allMachineExpenses.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
+  const msel=document.getElementById('me-filter-month');
+  const cur=msel?.value;
+  if(msel) msel.innerHTML='<option value="">All Months</option>'+months.map(m=>{
+    const[y,mo]=m.split('-');
+    return`<option value="${m}" ${cur===m?'selected':''}>${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;
+  }).join('');
+  // Machine filter
+  const machSel=document.getElementById('me-filter-machine');
+  const cur2=machSel?.value;
+  if(machSel) machSel.innerHTML='<option value="">All Machines</option>'+allMachines.map(m=>`<option value="${m.id}" ${cur2===String(m.id)?'selected':''}>${m.name}</option>`).join('');
+  // Machine dropdown in form
+  const formSel=document.getElementById('me-machine');
+  if(formSel) formSel.innerHTML='<option value="">Select Machine</option>'+allMachines.filter(m=>m.is_active!==false).map(m=>`<option value="${m.id}">${m.name}${m.type?' ('+m.type+')':''}</option>`).join('');
+}
+
+function filterMachExp(){
+  const q=(document.getElementById('me-search')?.value||'').toLowerCase();
+  const month=document.getElementById('me-filter-month')?.value||'';
+  const machId=document.getElementById('me-filter-machine')?.value||'';
+  let data=allMachineExpenses.filter(e=>{
+    if(month && !e.date?.startsWith(month)) return false;
+    if(machId && String(e.machine_id)!==machId) return false;
+    if(q){
+      const mach=allMachines.find(m=>m.id===e.machine_id);
+      const s=`${e.date}${mach?.name||''}${e.part_name||''}${e.worker_name||''}${e.time_acquired||''}`.toLowerCase();
+      if(!s.includes(q)) return false;
+    }
+    return true;
+  });
+  machExpPage=1;
+  renderMachExpTable(data);
+}
+
+function renderMachExpTable(data){
+  if(!data) data=allMachineExpenses;
+  const tbody=document.getElementById('machExpTbody');
+  if(!tbody) return;
+  const total=data.length;
+  const pages=Math.ceil(total/ME_PAGE_SIZE)||1;
+  if(machExpPage>pages) machExpPage=1;
+  const slice=data.slice((machExpPage-1)*ME_PAGE_SIZE, machExpPage*ME_PAGE_SIZE);
+  const isAdmin=currentUser?.role==='admin';
+  const catLabel={fuel:'⛽ Fuel',repair:'🔧 Repair',parts:'🔩 Parts',service:'🛠 Service',other:'📦 Other'};
+  tbody.innerHTML = slice.length ? slice.map((e,i)=>{
+    const mach=allMachines.find(m=>m.id===e.machine_id);
+    return`<tr>
+      <td class="sno">${(machExpPage-1)*ME_PAGE_SIZE+i+1}</td>
+      <td>${fd(e.date)}</td>
+      <td class="name-cell">${mach?.name||'—'}</td>
+      <td><span class="type-badge">${catLabel[e.category]||e.category}</span></td>
+      <td style="font-weight:700;color:var(--danger)">₹${parseFloat(e.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td style="color:var(--muted);font-size:0.82rem">${e.description||'—'}</td>
+      <td><span class="badge ${e.payment_type==='cash'?'badge-cash':'badge-account'}">${e.payment_type==='cash'?'💵 Cash':'🏦 Account'}</span></td>
+      <td class="no-print">${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteMachExp(${e.id})">🗑</button>`:'—'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted)">No expenses found</td></tr>`;
+  // Pagination
+  const pg=document.getElementById('machExpPagination');
+  if(pg){
+    pg.innerHTML='';
+    if(pages>1){
+      const mkBtn=(label,page,disabled,active)=>{
+        const b=document.createElement('button');
+        b.className='pg-btn'+(active?' active':'');
+        b.textContent=label; b.disabled=disabled||active;
+        b.onclick=()=>{ machExpPage=page; filterMachExp(); };
+        pg.appendChild(b);
+      };
+      mkBtn('«',1,machExpPage===1); mkBtn('‹',machExpPage-1,machExpPage===1);
+      for(let p=Math.max(1,machExpPage-2);p<=Math.min(pages,machExpPage+2);p++) mkBtn(p,p,false,p===machExpPage);
+      mkBtn('›',machExpPage+1,machExpPage===pages); mkBtn('»',pages,machExpPage===pages);
+    }
+  }
+}
+
+async function saveMachExp(){
+  const date=document.getElementById('me-date').value;
+  const machine_id=document.getElementById('me-machine').value;
+  const part_name=document.getElementById('me-part-name').value.trim();
+  const expense_amount=parseFloat(document.getElementById('me-expense-amount').value)||0;
+  const worker_name=document.getElementById('me-worker-name').value.trim();
+  const worker_amount=parseFloat(document.getElementById('me-worker-amount').value)||0;
+  const time_acquired=document.getElementById('me-time-acquired').value.trim();
+  if(!date||!machine_id){ toast('Date and Machine required','error'); return; }
+  if(!expense_amount&&!worker_amount){ toast('Enter at least Expense Amount or Worker Amount','error'); return; }
+  try{
+    await api('POST','machine_expenses',{date,machine_id:parseInt(machine_id),part_name,expense_amount,worker_name,worker_amount,time_acquired});
+    toast('Expense saved!','success');
+    clearMachExpForm();
+    await fetchMachExpData();
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function deleteMachExp(id){
+  if(!confirm('Delete this expense?')) return;
+  try{
+    await api('DELETE','machine_expenses','',`id=eq.${id}`);
+    toast('Deleted!','success');
+    await fetchMachExpData();
+    filterMachExp();
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+function clearMachExpForm(){
+  ['me-part-name','me-worker-name','me-time-acquired'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['me-expense-amount','me-worker-amount'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const d=document.getElementById('me-date');
+  if(d) d.value=new Date().toISOString().split('T')[0];
+}
+
+async function addMachine(){
+  const name=document.getElementById('mach-name').value.trim();
+  const type=document.getElementById('mach-type').value.trim();
+  if(!name){ toast('Machine name required','error'); return; }
+  try{
+    await api('POST','machines',{name,type,is_active:true});
+    toast('Machine added!','success');
+    document.getElementById('mach-name').value='';
+    document.getElementById('mach-type').value='';
+    await fetchMachExpData();
+    renderMachinesTable();
+    populateMachExpFilters();
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function removeMachine(id){
+  if(!confirm('Remove this machine?')) return;
+  try{
+    await api('PATCH','machines',{is_active:false},`id=eq.${id}`);
+    toast('Machine removed!','success');
+    await fetchMachExpData();
+    renderMachinesTable();
+    populateMachExpFilters();
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+function renderMachinesTable(){
+  const tbody=document.getElementById('machinesTbody');
+  if(!tbody) return;
+  tbody.innerHTML = allMachines.length ? allMachines.map((m,i)=>`<tr>
+    <td class="sno">${i+1}</td>
+    <td class="name-cell">${m.name}</td>
+    <td style="color:var(--muted)">${m.type||'—'}</td>
+    <td><span class="${m.is_active!==false?'present-badge':'absent-badge'}">${m.is_active!==false?'Active':'Inactive'}</span></td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeMachine(${m.id})">🗑 Remove</button></td>
+  </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No machines added yet</td></tr>`;
+}
+
+function populateMachExpReportMonths(){
+  const months=[...new Set(allMachineExpenses.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort().reverse();
+  const sel=document.getElementById('me-report-month');
+  if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Select Month</option>'+months.map(m=>{
+    const[y,mo]=m.split('-');
+    return`<option value="${m}" ${cur===m?'selected':''}>${new Date(y,mo-1).toLocaleString('default',{month:'long',year:'numeric'})}</option>`;
+  }).join('');
+  if(cur) loadMachExpReport();
+}
+
+function loadMachExpReport(){
+  const month=document.getElementById('me-report-month')?.value;
+  const el=document.getElementById('machExpReportContent');
+  if(!month){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Select a month</div></div>`; return; }
+  const data=allMachineExpenses.filter(e=>e.date?.startsWith(month));
+  if(!data.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No data for this month</div></div>`; return; }
+  const fmt=n=>'₹'+parseFloat(n||0).toLocaleString('en-IN',{minimumFractionDigits:2});
+
+  const totalExp=data.reduce((s,e)=>s+parseFloat(e.expense_amount||0),0);
+  const totalWork=data.reduce((s,e)=>s+parseFloat(e.worker_amount||0),0);
+  const grandTotal=totalExp+totalWork;
+
+  // Per machine summary
+  const machMap={};
+  data.forEach(e=>{
+    const mach=allMachines.find(m=>m.id===e.machine_id);
+    const key=mach?.name||'Unknown';
+    if(!machMap[key]) machMap[key]={entries:0,expAmt:0,workAmt:0};
+    machMap[key].entries++;
+    machMap[key].expAmt+=parseFloat(e.expense_amount||0);
+    machMap[key].workAmt+=parseFloat(e.worker_amount||0);
+  });
+
+  el.innerHTML=`
+    <div class="report-summary">
+      <div class="rsm"><div class="rl">Total Entries</div><div class="rv" style="color:var(--primary)">${data.length}</div></div>
+      <div class="rsm"><div class="rl">Expense Amount</div><div class="rv" style="color:var(--danger)">${fmt(totalExp)}</div></div>
+      <div class="rsm"><div class="rl">Worker Amount</div><div class="rv" style="color:var(--warning)">${fmt(totalWork)}</div></div>
+      <div class="rsm"><div class="rl">Grand Total</div><div class="rv" style="color:#7c3aed">${fmt(grandTotal)}</div></div>
+    </div>
+    <div style="padding:14px 20px 8px;font-size:0.85rem;font-weight:700;border-top:1px solid var(--border)">Machine Summary</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Machine</th><th>Entries</th><th>Expense Amt</th><th>Worker Amt</th><th>Total</th></tr></thead>
+      <tbody>${Object.entries(machMap).map(([name,d])=>`<tr>
+        <td class="name-cell">${name}</td>
+        <td>${d.entries}</td>
+        <td style="color:var(--danger);font-weight:700">${fmt(d.expAmt)}</td>
+        <td style="color:var(--warning);font-weight:700">${fmt(d.workAmt)}</td>
+        <td style="color:#7c3aed;font-weight:800">${fmt(d.expAmt+d.workAmt)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <div style="padding:14px 20px 8px;font-size:0.85rem;font-weight:700;border-top:1px solid var(--border)">Detailed Entries</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Date</th><th>Machine</th><th>Part Name</th><th>Expense (₹)</th><th>Worker</th><th>Worker Amt (₹)</th><th>Time</th></tr></thead>
+      <tbody>${data.sort((a,b)=>a.date.localeCompare(b.date)).map((e,i)=>{
+        const mach=allMachines.find(m=>m.id===e.machine_id);
+        return`<tr>
+          <td class="sno">${i+1}</td>
+          <td>${fd(e.date)}</td>
+          <td class="name-cell">${mach?.name||'—'}</td>
+          <td>${e.part_name||'—'}</td>
+          <td style="font-weight:700;color:var(--danger)">${fmt(e.expense_amount)}</td>
+          <td>${e.worker_name||'—'}</td>
+          <td style="font-weight:700;color:var(--warning)">${fmt(e.worker_amount)}</td>
+          <td style="color:var(--muted);font-size:0.82rem">${e.time_acquired||'—'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  `;
+}
+
+
+function exportMachExp(){
+  const data=allMachineExpenses;
+  if(!data.length){ toast('No data to export','error'); return; }
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(data.map((e,i)=>{
+    const mach=allMachines.find(m=>m.id===e.machine_id);
+    return{'S.No':i+1,'Date':fd(e.date),'Machine':mach?.name||'','Part Name':e.part_name||'','Expense Amount':e.expense_amount||0,'Worker Name':e.worker_name||'','Worker Amount':e.worker_amount||0,'Time Acquired':e.time_acquired||''};
+  }));
+  ws['!cols']=[6,13,18,18,15,18,15,15].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Machine Expenses');
+  XLSX.writeFile(wb,'machine_expenses.xlsx');
+  toast('Exported!','success');
+}
+
+function exportMachExpReport(){
+  const month=document.getElementById('me-report-month')?.value;
+  if(!month){ toast('Select a month first','error'); return; }
+  const data=allMachineExpenses.filter(e=>e.date?.startsWith(month));
+  if(!data.length){ toast('No data','error'); return; }
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(data.map((e,i)=>{
+    const mach=allMachines.find(m=>m.id===e.machine_id);
+    return{'S.No':i+1,'Date':fd(e.date),'Machine':mach?.name||'','Part Name':e.part_name||'','Expense Amount':e.expense_amount||0,'Worker Name':e.worker_name||'','Worker Amount':e.worker_amount||0,'Time Acquired':e.time_acquired||''};
+  }));
+  ws['!cols']=[6,13,18,18,15,18,15,15].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Report');
+  XLSX.writeFile(wb,`machine_expenses_${month}.xlsx`);
   toast('Exported!','success');
 }
 
@@ -2775,6 +3188,9 @@ async function initCpDates(){
     </button>
     <button class="mbn-btn" id="mbnVehExp" onclick="switchModule('vehexp')" style="position:relative">
       <span class="mbn-icon">🚗</span>Expenses
+    </button>
+    <button class="mbn-btn" id="mbnMachExp" onclick="switchModule('machexp')" style="display:none">
+      <span class="mbn-icon">⚙️</span>Machine
     </button>
     <button class="mbn-btn" id="mbnMenu" onclick="toggleSidebar()" style="position:relative">
       <span class="mbn-icon">☰</span>Menu
